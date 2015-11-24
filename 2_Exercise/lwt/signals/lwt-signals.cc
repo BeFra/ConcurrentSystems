@@ -3,6 +3,7 @@
 #include "include/lwt.h"
 #include "sched/scheduler.h"
 #include "lwt.h"
+#include <stdio.h>
 
 struct lwt_signal {
     unsigned int number;
@@ -53,6 +54,7 @@ void lwt_sig_signal(struct lwt_signal *sig) {
     sig->s_lock.lock();
     sig->number -=1;
     lwt::Scheduler::readyThread(sig->currentThread);
+    printf("signaleddddddddddddddddd\n");
     sig->s_lock.unlock();
 }
 
@@ -76,6 +78,7 @@ void lwt_sig_wait(struct lwt_signal *sig) {
             lwt::Scheduler::block(lwt_sig_unlock, sig);
         } else {
             block = false;
+	    sig->s_lock.unlock();
         }
     } while(block);
 }

@@ -16,7 +16,8 @@ struct lwt_barrier {
 /// @return New lwt_barrier object, @c 0 on failure
 struct lwt_barrier* lwt_barrier_init(unsigned int num) {
     struct lwt_barrier *barrier = (struct lwt_barrier*) lwt::Alloc::alloc(sizeof(struct lwt_barrier));
-    
+    barrier->number = num;
+    //barrier->s-lock = 
 
 }
 
