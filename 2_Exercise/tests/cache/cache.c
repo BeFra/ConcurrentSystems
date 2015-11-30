@@ -39,14 +39,18 @@ static void thread2()
 }
 
 static struct lwt_signal *sig;
-static void t1(void*, void*)
+static void t1(void* a, void* b)
 {
+    (void) a;
+    (void) b;
 	thread1();
 	lwt_sig_signal(sig);
 }
 
-static void t2(void*, void*)
+static void t2(void* a, void* b)
 {
+    (void) a;
+    (void) b;
 	thread2();
 	lwt_sig_signal(sig);
 }

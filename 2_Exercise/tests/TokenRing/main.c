@@ -22,20 +22,23 @@ static void ring(void *td, void *unused)
 	printf("enter thread %d\n",myid);
 	
 	if(myid != (numThreads - 1)) {
-		//lwt_sig_wait(data->prev);
+		lwt_sig_wait(data->prev);
 	}
 	token += 1;
-	//lwt_sig_signal(data->next);
+	lwt_sig_signal(data->next);
 }
+
+ThreadData tdata[100];
+struct lwt_signal* signal[100];
 
 void lwt_main(int argc, char *argv[], int *ret_val)
 {
 	(void)argc;
 	(void)argv;
 	
-	struct lwt_signal* signal[numThreads];
+	
 	//sem_t sems[numThreads];
-	ThreadData tdata[numThreads];
+	
 	
 	for(int i = 0; i < numThreads; ++i) {
 		signal[i] = lwt_sig_init(1);

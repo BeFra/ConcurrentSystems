@@ -40,6 +40,7 @@ void lwt_sig_reset(struct lwt_signal *sig, unsigned int num) {
 ///
 /// @param sig Signal to be destroyed.
 void lwt_sig_destroy(struct lwt_signal *sig) {
+    sig->s_lock.lock();
     lwt::Alloc::free(sig);
 }
 
@@ -53,14 +54,15 @@ void lwt_sig_destroy(struct lwt_signal *sig) {
 void lwt_sig_signal(struct lwt_signal *sig) {
     sig->s_lock.lock();
     sig->number -=1;
-    lwt::Scheduler::readyThread(sig->currentThread);
-    printf("signaleddddddddddddddddd\n");
+    if(sig->number == 0) {
+        lwt::Scheduler::readyThread(sig->currentThread);
+        printf("signaleddddddddddddddddd\n");
+    }
     sig->s_lock.unlock();
 }
 
 void lwt_sig_unlock(void *sig) {
     struct lwt_signal *signal = (struct lwt_signal*) sig;
-    signal->currentThread = lwt::Scheduler::currentThread;
     signal->s_lock.unlock();
 }
 
@@ -71,16 +73,13 @@ void lwt_sig_unlock(void *sig) {
 ///
 /// @param sig Signal to wait for. 
 void lwt_sig_wait(struct lwt_signal *sig) {
-    bool block = true;
-    do {
-        sig->s_lock.lock();
-        if(sig->number != 0) {
-            lwt::Scheduler::block(lwt_sig_unlock, sig);
-        } else {
-            block = false;
-	    sig->s_lock.unlock();
-        }
-    } while(block);
+    sig->s_lock.lock();
+    if(sig->number != 0) {
+       sig->currentThread = lwt::Scheduler::currentThread;
+       lwt::Scheduler::block(lwt_sig_unlock, sig);
+       return;
+    }
+    sig->s_lock.unlock();
 }
 
 
