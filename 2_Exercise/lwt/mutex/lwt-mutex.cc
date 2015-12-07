@@ -4,6 +4,7 @@
 /// @brief Implementation of mutex functions
 
 #include <stdint.h>
+#include <stdio.h>
 #include "../mem/alloc.h"
 #include "../adt/simplequeue.h"
 #include "../spinlocks/readlock.h"
@@ -14,7 +15,7 @@ struct lwt_mutex {
     uintptr_t mutex_id;
     lwt::SimpleQueue<lwt::Thread> queue;
     lwt::ReadSpinlock s_lock;
-    int mutex_owner;
+    lwt::Thread* mutex_owner;
 };
 
 /// @brief Creates a new lwt_mutex
@@ -25,11 +26,16 @@ struct lwt_mutex {
 /// @return New mutex object, @c 0 on failure
 struct lwt_mutex* lwt_mutex_init(int config) {
     (void) config;
-    struct lwt_mutex* mutex = (struct lwt_mutex*) lwt::Alloc::alloc(sizeof(struct lwt_mutex));
+     printf("finish mutex init 0\n");
+    /*struct lwt_mutex* mutex = (struct lwt_mutex*) lwt::Alloc::alloc(sizeof(struct lwt_mutex));
+     printf("finish mutex init 1\n");
     mutex->queue.init();
+     printf("finish mutex init 2\n");
     mutex->s_lock.init();
+     printf("finish mutex init 3\n");
     mutex->mutex_owner = lwt::Scheduler::currentThread;
-    return mutex;
+    printf("finish mutex init\n");*/
+    return 0; //mutex;
 }
 
 /// @brief Destroy a mutex.
@@ -54,16 +60,18 @@ void block_function(void *mut) {
 /// and order checking failed or LWT_MUTEX_DETECT was defined and a deadlock
 /// checking found that a deadlock would happen.
 int  lwt_mutex_lock(struct lwt_mutex *mutex) {
+	int ret_value = 0;
     mutex->s_lock.lock();
     if(lwt::Scheduler::currentThread != mutex->mutex_owner) {
         mutex->queue.enqueue(lwt::Scheduler::currentThread);
         lwt::Scheduler::block(block_function, mutex);
-        return 0;
+        //ret_value = 0;
     } else {
         mutex->mutex_owner = lwt::Scheduler::currentThread; 
+        ret_value = 1;
         mutex->s_lock.unlock();
-        return 1;
     }
+    return ret_value;
 }
 
 /// @brief Unlock a mutex
@@ -76,9 +84,19 @@ int  lwt_mutex_lock(struct lwt_mutex *mutex) {
 ///
 /// @return @c 1 on succes, @c 0 if any check failed
 int  lwt_mutex_unlock(struct lwt_mutex *mutex) {
-    if(mutex->mutex_owner ) {
-        mutex->mutex_owner = 0;
-    }
+	int ret_value = 0;
+	mutex->s_lock.lock();
+    if(mutex->mutex_owner != lwt::Scheduler::currentThread) {
+        ret_value = 0;
+    } else {
+		while(!mutex->queue.isEmpty()) {
+            lwt::Scheduler::readyThread(mutex->queue.dequeue());
+		}
+		ret_value = 1;
+		mutex->mutex_owner = 0;
+	}
+	mutex->s_lock.unlock();
+    return ret_value;
 }
 
 /// @brief Try to lock a mutex
@@ -92,7 +110,16 @@ int  lwt_mutex_unlock(struct lwt_mutex *mutex) {
 /// option LWT_MUTEX_ORDERED was provided at creation time
 /// and order checking failed
 int  lwt_mutex_trylock(struct lwt_mutex *mutex) {
-    return 0;
+	int ret_value = 0;
+	mutex->s_lock.lock();
+	if(mutex->mutex_owner == 0) {
+		mutex->mutex_owner = lwt::Scheduler::currentThread; 
+        ret_value = 1;
+	} else {
+		ret_value = 0;
+	}
+	mutex->s_lock.unlock();
+    return ret_value;
 }
 
 /// @brief Return mutex id

@@ -21,6 +21,7 @@ struct lwt_signal* lwt_sig_init(unsigned int num) {
     struct lwt_signal *signal = (struct lwt_signal*) lwt::Alloc::alloc(sizeof(struct lwt_signal));
     signal->number = num;
     signal->s_lock.init();
+    signal->currentThread =0;
     return signal;   
 }
     
@@ -56,7 +57,8 @@ void lwt_sig_signal(struct lwt_signal *sig) {
     sig->s_lock.lock();
     sig->number -=1;
     if(sig->number == 0) {
-        lwt::Scheduler::readyThread(sig->currentThread);
+		if(sig->currentThread != 0)
+			lwt::Scheduler::readyThread(sig->currentThread);
     }
     sig->s_lock.unlock();
 }
