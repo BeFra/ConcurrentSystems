@@ -19,7 +19,6 @@ static void ring(void *td, void *unused)
 
 	ThreadData *data = (ThreadData*)td;
 	const int myid = data->id;
-	printf("enter thread %d\n",myid);
 	
 	if(myid != (numThreads - 1)) {
 		lwt_sig_wait(data->prev);
@@ -57,7 +56,7 @@ void lwt_main(int argc, char *argv[], int *ret_val)
 		tdata[i].id = i;
 	}
 	
-    printf("finsih\n");
+
 	for(int i = 0; i < numThreads; ++i) {
 		lwt_run(ring, (void*)(&tdata[i]), 0);
 	}

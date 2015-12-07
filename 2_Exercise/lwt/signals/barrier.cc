@@ -4,6 +4,8 @@
 #include "../mem/alloc.h"
 #include "../adt/simplequeue.h"
 #include "sched/scheduler.h"
+#include <stdio.h>
+
 struct lwt_barrier {
     unsigned int number;
     unsigned int base;
