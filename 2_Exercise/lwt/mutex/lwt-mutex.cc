@@ -40,7 +40,7 @@ struct lwt_mutex* lwt_mutex_init(int config) {
 /// @param mutex Mutex to be destroyed.
 void lwt_mutex_destroy(struct lwt_mutex *mutex) {
     mutex->s_lock.lock();
-    free(mutex);
+    lwt::Alloc::free(mutex);
 }
 
 void block_function(void *mut) {

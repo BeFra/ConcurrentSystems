@@ -39,7 +39,7 @@ int lwt_cond_signal(struct lwt_cond *cond);
 ///
 /// Wait for a condition to be signaled. The @p mutex object must be locked
 /// before calling this function. The current thread will sleep on the condition
-//variable and atomically release the mutex. If the thread was signaled, it
+/// variable and atomically release the mutex. If the thread was signaled, it
 /// must acquire the lock again.
 ///
 /// @param cond Condition variable to wait on.
