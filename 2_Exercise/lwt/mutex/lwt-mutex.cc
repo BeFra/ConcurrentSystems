@@ -16,6 +16,7 @@ struct lwt_mutex {
     lwt::SimpleQueue<lwt::Thread> queue;
     lwt::ReadSpinlock s_lock;
     lwt::Thread* mutex_owner;
+    bool lock;
 };
 
 /// @brief Creates a new lwt_mutex
@@ -26,16 +27,12 @@ struct lwt_mutex {
 /// @return New mutex object, @c 0 on failure
 struct lwt_mutex* lwt_mutex_init(int config) {
     (void) config;
-     printf("finish mutex init 0\n");
-    /*struct lwt_mutex* mutex = (struct lwt_mutex*) lwt::Alloc::alloc(sizeof(struct lwt_mutex));
-     printf("finish mutex init 1\n");
+    struct lwt_mutex* mutex = (struct lwt_mutex*) lwt::Alloc::alloc(sizeof(struct lwt_mutex));
     mutex->queue.init();
-     printf("finish mutex init 2\n");
     mutex->s_lock.init();
-     printf("finish mutex init 3\n");
     mutex->mutex_owner = lwt::Scheduler::currentThread;
-    printf("finish mutex init\n");*/
-    return 0; //mutex;
+    mutex->lock = 0;
+    return mutex;
 }
 
 /// @brief Destroy a mutex.
@@ -62,15 +59,17 @@ void block_function(void *mut) {
 int  lwt_mutex_lock(struct lwt_mutex *mutex) {
 	int ret_value = 0;
     mutex->s_lock.lock();
-    if(lwt::Scheduler::currentThread != mutex->mutex_owner) {
-        mutex->queue.enqueue(lwt::Scheduler::currentThread);
-        lwt::Scheduler::block(block_function, mutex);
+    
+	while(mutex->lock == 1) {
+		mutex->queue.enqueue(lwt::Scheduler::currentThread);
+		lwt::Scheduler::block(block_function, mutex);
         //ret_value = 0;
-    } else {
-        mutex->mutex_owner = lwt::Scheduler::currentThread; 
-        ret_value = 1;
-        mutex->s_lock.unlock();
-    }
+        mutex->s_lock.lock();
+	}
+    mutex->mutex_owner = lwt::Scheduler::currentThread;
+    mutex->lock = 1;
+    ret_value = 1;
+    mutex->s_lock.unlock();
     return ret_value;
 }
 
@@ -94,6 +93,7 @@ int  lwt_mutex_unlock(struct lwt_mutex *mutex) {
 		}
 		ret_value = 1;
 		mutex->mutex_owner = 0;
+		mutex->lock = 0;
 	}
 	mutex->s_lock.unlock();
     return ret_value;
