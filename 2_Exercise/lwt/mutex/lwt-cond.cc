@@ -23,6 +23,7 @@ struct lwt_cond {
 struct lwt_cond* lwt_cond_init() {
 	struct lwt_cond* cond = (struct lwt_cond*) lwt::Alloc::alloc(sizeof(struct lwt_cond));
 	cond->queue.init();
+	cond->s_lock.init();
 
 	return cond;
 }
@@ -54,7 +55,7 @@ int lwt_cond_signal(struct lwt_cond *cond) {
 	return 0;
 }
 
-void block_function(void *mut) {
+void lwt_cond_block_function(void *mut) {
     struct lwt_mutex* mutex = (struct lwt_mutex*) mut;
     lwt_mutex_unlock(mutex);
 }
@@ -76,7 +77,7 @@ void block_function(void *mut) {
 int lwt_cond_wait(struct lwt_cond *cond, struct lwt_mutex *mutex){
 
 	cond->queue.enqueue(lwt::Scheduler::currentThread);
-	lwt::Scheduler::block(block_function, mutex);
+	lwt::Scheduler::block(lwt_cond_block_function, mutex);
     lwt_mutex_lock(mutex);
     return 1;	
 }

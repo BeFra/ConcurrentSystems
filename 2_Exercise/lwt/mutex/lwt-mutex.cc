@@ -1,14 +1,14 @@
-#include "../include/lwt-mutex.h"
+#include "include/lwt-mutex.h"
 
 /// @file lwt-mutex.cc
 /// @brief Implementation of mutex functions
 
 #include <stdint.h>
 #include <stdio.h>
-#include "../mem/alloc.h"
-#include "../adt/simplequeue.h"
-#include "../spinlocks/readlock.h"
-#include "../sched/thread.h"
+#include "mem/alloc.h"
+#include "adt/simplequeue.h"
+#include "spinlocks/readlock.h"
+#include "sched/thread.h"
 #include "sched/scheduler.h"
 
 struct lwt_mutex {
@@ -17,6 +17,8 @@ struct lwt_mutex {
     lwt::ReadSpinlock s_lock;
     lwt::Thread* mutex_owner;
     bool lock;
+    int config;
+
 };
 
 /// @brief Creates a new lwt_mutex
@@ -26,12 +28,14 @@ struct lwt_mutex {
 ///
 /// @return New mutex object, @c 0 on failure
 struct lwt_mutex* lwt_mutex_init(int config) {
-    (void) config;
+
     struct lwt_mutex* mutex = (struct lwt_mutex*) lwt::Alloc::alloc(sizeof(struct lwt_mutex));
     mutex->queue.init();
     mutex->s_lock.init();
     mutex->mutex_owner = lwt::Scheduler::currentThread;
     mutex->lock = 0;
+    mutex->config = config;
+    //mutex->id = (int) mutex;
     return mutex;
 }
 
@@ -43,7 +47,7 @@ void lwt_mutex_destroy(struct lwt_mutex *mutex) {
     lwt::Alloc::free(mutex);
 }
 
-void block_function(void *mut) {
+void lwt_mutex_block_function(void *mut) {
     struct lwt_mutex* mutex = (struct lwt_mutex*) mut;
     mutex->s_lock.unlock();
 }
@@ -59,12 +63,19 @@ void block_function(void *mut) {
 int  lwt_mutex_lock(struct lwt_mutex *mutex) {
 	int ret_value = 0;
     mutex->s_lock.lock();
-    
-	while(mutex->lock == 1) {
-		mutex->queue.enqueue(lwt::Scheduler::currentThread);
-		lwt::Scheduler::block(block_function, mutex);
-        //ret_value = 0;
-        mutex->s_lock.lock();
+    if(((mutex->config & LWT_MUTEX_RECURSIVE) == LWT_MUTEX_RECURSIVE)
+		  &&  (lwt::Scheduler::currentThread == mutex->mutex_owner)) {
+		// wenn mutex_ower ++ currentThread dann wurde der mutex zuvor von currentThread
+		// gelockt und er darf bei rekursiver nutzung weiter machen.
+		mutex->s_lock.unlock();
+		return 1;
+	} else {
+		while(mutex->lock == 1) {
+			mutex->queue.enqueue(lwt::Scheduler::currentThread);
+			lwt::Scheduler::block(lwt_mutex_block_function, mutex);
+			//ret_value = 0;
+			mutex->s_lock.lock();
+		}
 	}
     mutex->mutex_owner = lwt::Scheduler::currentThread;
     mutex->lock = 1;
@@ -85,7 +96,7 @@ int  lwt_mutex_lock(struct lwt_mutex *mutex) {
 int  lwt_mutex_unlock(struct lwt_mutex *mutex) {
 	int ret_value = 0;
 	mutex->s_lock.lock();
-    if(mutex->mutex_owner != lwt::Scheduler::currentThread) {
+    if((mutex->mutex_owner != lwt::Scheduler::currentThread)) { //mutex->config == LWT_MUTEX_CHECK_OWNER
         ret_value = 0;
     } else {
 		while(!mutex->queue.isEmpty()) {
